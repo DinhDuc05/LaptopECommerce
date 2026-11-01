@@ -2,36 +2,14 @@ import Cookies from 'js-cookie';
 import { IUser, IProduct, CreateProductInput, ApiResponse } from '../types/models';
 import { Category, Brand, Order } from '../types';
 
-// Browser requests use the configured public backend. When no public backend is
-// configured, the same-origin Next.js API routes provide the local fallback.
-const API_BASE = typeof window !== 'undefined'
-  ? (() => {
-      const configured = process.env.NEXT_PUBLIC_API_URL;
-      const isLocalBrowser = window.location.hostname === 'localhost'
-        || window.location.hostname === '127.0.0.1';
-      const configuredIsLocal = configured?.includes('localhost:5000')
-        || configured?.includes('127.0.0.1:5000');
-      if (isLocalBrowser && (!configured || configured === '/api')) {
-        return 'http://localhost:5000/api';
-      }
-      if (!isLocalBrowser && configuredIsLocal) {
-        return '/api';
-      }
-      return configured || '/api';
-    })()
-  : (() => {
-      const configured = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL;
-      const configuredIsLocal = configured?.includes('localhost:5000')
-        || configured?.includes('127.0.0.1:5000');
-      if (configured && !configuredIsLocal) return configured;
-      if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api`;
-      return 'http://localhost:5000/api';
-    })();
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  || 'https://laptop-e-commerce-k474.vercel.app';
+const API_BASE = API_BASE_URL.endsWith('/api')
+  ? API_BASE_URL
+  : `${API_BASE_URL}/api`;
 
 function getFallbackApiBase(): string {
-  if (typeof window !== 'undefined') return '/api';
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api`;
-  return 'http://localhost:3000/api';
+  return API_BASE;
 }
 
 // Helper lấy Auth Header từ Cookie hoặc LocalStorage
