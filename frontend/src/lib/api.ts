@@ -9,11 +9,30 @@ const API_BASE = typeof window !== 'undefined'
       const configured = process.env.NEXT_PUBLIC_API_URL;
       const isLocalBrowser = window.location.hostname === 'localhost'
         || window.location.hostname === '127.0.0.1';
-      return isLocalBrowser && (!configured || configured === '/api')
-        ? 'http://localhost:5000/api'
-        : (configured || '/api');
+      const configuredIsLocal = configured?.includes('localhost:5000')
+        || configured?.includes('127.0.0.1:5000');
+      if (isLocalBrowser && (!configured || configured === '/api')) {
+        return 'http://localhost:5000/api';
+      }
+      if (!isLocalBrowser && configuredIsLocal) {
+        return '/api';
+      }
+      return configured || '/api';
     })()
-  : (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api');
+  : (() => {
+      const configured = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL;
+      const configuredIsLocal = configured?.includes('localhost:5000')
+        || configured?.includes('127.0.0.1:5000');
+      if (configured && !configuredIsLocal) return configured;
+      if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api`;
+      return 'http://localhost:5000/api';
+    })();
+
+function getFallbackApiBase(): string {
+  if (typeof window !== 'undefined') return '/api';
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api`;
+  return 'http://localhost:3000/api';
+}
 
 // Helper lấy Auth Header từ Cookie hoặc LocalStorage
 export function getAuthHeaders(): HeadersInit {
@@ -24,6 +43,33 @@ export function getAuthHeaders(): HeadersInit {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+async function fetchAdminData(path: string): Promise<any | null> {
+  const headers = getAuthHeaders();
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      headers,
+      cache: 'no-store',
+    });
+    if (response.ok) return await response.json();
+  } catch (error) {
+    console.error(`Lỗi API quản trị ${path}:`, error);
+  }
+
+  if (API_BASE !== getFallbackApiBase()) {
+    try {
+      const response = await fetch(`${getFallbackApiBase()}${path}`, {
+        headers,
+        cache: 'no-store',
+      });
+      if (response.ok) return await response.json();
+    } catch (error) {
+      console.error(`Lỗi fallback API quản trị ${path}:`, error);
+    }
+  }
+
+  return null;
 }
 
 // ================= DỮ LIỆU TĨNH FALLBACK =================
@@ -51,9 +97,30 @@ export async function loginApi(email: string, password: string) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
+    if (res.ok) return await res.json();
+
+    // Keep the original demo account usable when Express is unavailable.
+    if (API_BASE !== '/api') {
+      const fallbackRes = await fetch(`${getFallbackApiBase()}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      return await fallbackRes.json();
+    }
+
     return await res.json();
   } catch (error: any) {
-    return { success: false, message: error.message || 'Lỗi kết nối máy chủ khi đăng nhập.' };
+    try {
+      const fallbackRes = await fetch(`${getFallbackApiBase()}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      return await fallbackRes.json();
+    } catch {
+      return { success: false, message: error.message || 'Lỗi kết nối máy chủ khi đăng nhập.' };
+    }
   }
 }
 
@@ -90,7 +157,8 @@ export async function getProducts(params?: Record<string, string | number | bool
       });
     }
 
-    const res = await fetch(`${API_BASE}/products?${query.toString()}`, {
+    const requestPath = `/products?${query.toString()}`;
+    const res = await fetch(`${API_BASE}${requestPath}`, {
       cache: 'no-store',
     });
     if (res.ok) {
@@ -102,8 +170,43 @@ export async function getProducts(params?: Record<string, string | number | bool
         };
       }
     }
+
+    if (API_BASE !== getFallbackApiBase()) {
+      const fallbackRes = await fetch(`${getFallbackApiBase()}${requestPath}`, {
+        cache: 'no-store',
+      });
+      if (fallbackRes.ok) {
+        const json = await fallbackRes.json();
+        if (json.success && Array.isArray(json.data)) {
+          return {
+            products: json.data,
+            pagination: {
+              total: json.data.length,
+              page: Number(json.pagination?.page) || 1,
+              totalPages: Number(json.pagination?.totalPages) || 1,
+            },
+          };
+        }
+      }
+    }
   } catch (error) {
     console.error('Lỗi khi tải danh sách sản phẩm:', error);
+    try {
+      const fallbackRes = await fetch(`${getFallbackApiBase()}/products`, {
+        cache: 'no-store',
+      });
+      if (fallbackRes.ok) {
+        const json = await fallbackRes.json();
+        if (json.success && Array.isArray(json.data)) {
+          return {
+            products: json.data,
+            pagination: { total: json.data.length, page: 1, totalPages: 1 },
+          };
+        }
+      }
+    } catch (fallbackError) {
+      console.error('Lỗi khi tải fallback sản phẩm:', fallbackError);
+    }
   }
 
   return { products: [], pagination: { total: 0, page: 1, totalPages: 1 } };
@@ -111,15 +214,34 @@ export async function getProducts(params?: Record<string, string | number | bool
 
 export async function getProductBySlug(slug: string): Promise<IProduct | null> {
   try {
-    const res = await fetch(`${API_BASE}/products/${encodeURIComponent(slug)}`, { cache: 'no-store' });
+    const requestPath = `/products/${encodeURIComponent(slug)}`;
+    const res = await fetch(`${API_BASE}${requestPath}`, { cache: 'no-store' });
     if (res.ok) {
       const json = await res.json();
       if (json.success && json.data) {
         return json.data;
       }
     }
+    if (API_BASE !== getFallbackApiBase()) {
+      const fallbackRes = await fetch(`${getFallbackApiBase()}${requestPath}`, { cache: 'no-store' });
+      if (fallbackRes.ok) {
+        const json = await fallbackRes.json();
+        if (json.success && json.data) return json.data;
+      }
+    }
   } catch (error) {
     console.error('Lỗi getProductBySlug:', error);
+    try {
+      const fallbackRes = await fetch(`${getFallbackApiBase()}/products/${encodeURIComponent(slug)}`, {
+        cache: 'no-store',
+      });
+      if (fallbackRes.ok) {
+        const json = await fallbackRes.json();
+        if (json.success && json.data) return json.data;
+      }
+    } catch (fallbackError) {
+      console.error('Lỗi fallback getProductBySlug:', fallbackError);
+    }
   }
   return null;
 }
@@ -173,21 +295,8 @@ export async function lookupOrder(query: string): Promise<{ success: boolean; da
 
 // ================= ADMIN PRODUCTS API (DATABASE THẬT) =================
 export async function getAdminProducts(): Promise<IProduct[]> {
-  try {
-    const res = await fetch(`${API_BASE}/admin/products`, {
-      headers: getAuthHeaders(),
-      cache: 'no-store',
-    });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        return json.data;
-      }
-    }
-  } catch (error) {
-    console.error('Lỗi API GET /api/admin/products:', error);
-  }
-  return [];
+  const json = await fetchAdminData('/admin/products');
+  return json?.success && Array.isArray(json.data) ? json.data : [];
 }
 
 export async function createAdminProduct(productData: CreateProductInput): Promise<ApiResponse<IProduct>> {
@@ -224,21 +333,8 @@ export async function deleteAdminProduct(id: number | string): Promise<ApiRespon
 
 // ================= ADMIN USERS API (DATABASE THẬT) =================
 export async function getAdminUsers(): Promise<IUser[]> {
-  try {
-    const res = await fetch(`${API_BASE}/admin/users`, {
-      headers: getAuthHeaders(),
-      cache: 'no-store',
-    });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        return json.data;
-      }
-    }
-  } catch (error) {
-    console.error('Lỗi API GET /api/admin/users:', error);
-  }
-  return [];
+  const json = await fetchAdminData('/admin/users');
+  return json?.success && Array.isArray(json.data) ? json.data : [];
 }
 
 export async function updateAdminUserRole(userId: number | string, role: string): Promise<ApiResponse<IUser>> {
@@ -291,21 +387,8 @@ export async function getAdminStats() {
 }
 
 export async function getAdminOrders(): Promise<Order[]> {
-  try {
-    const res = await fetch(`${API_BASE}/admin/orders`, {
-      headers: getAuthHeaders(),
-      cache: 'no-store',
-    });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        return json.data;
-      }
-    }
-  } catch (error) {
-    console.error('Lỗi API GET /api/admin/orders:', error);
-  }
-  return [];
+  const json = await fetchAdminData('/admin/orders');
+  return json?.success && Array.isArray(json.data) ? json.data : [];
 }
 
 export async function updateAdminOrderStatus(orderId: number | string, status: string): Promise<ApiResponse> {
