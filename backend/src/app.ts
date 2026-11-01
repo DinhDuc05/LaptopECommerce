@@ -9,28 +9,30 @@ import { ENV } from './config/env';
 export const createApp = (): Application => {
   const app = express();
 
-  // 1. Tối ưu HTTP Headers bảo mật chống tấn công với dung lượng tối thiểu
+  // 1. HTTP Headers bảo mật
   app.use(helmet());
 
-  // 2. Nén toàn bộ dữ liệu phản hồi HTTP bằng Gzip (Giảm tải băng thông và RAM truyền tải)
+  // 2. Nén Gzip
   app.use(compression({
-    level: 6, // Cân bằng hoàn hảo giữa tốc độ nén CPU và tỷ lệ nén dung lượng
-    threshold: 1024, // Chỉ nén các gói tin trên 1KB
+    level: 6,
+    threshold: 1024,
   }));
 
-  // 3. Cấu hình CORS an toàn
+  // 3. Cấu hình CORS
   app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }));
 
-  // 4. Giới hạn kích thước Body tối đa 1MB để chống tràn bộ nhớ heap
+  // 4. Giới hạn kích thước Body
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-  // 5. Chống spam request với Rate Limiting
-  app.use('/api', apiRateLimiter);
+  // 5. Rate Limiting (chỉ bật khi không ở môi trường Serverless hoặc bọc try-catch)
+  if (ENV.NODE_ENV !== 'production') {
+    app.use('/api', apiRateLimiter);
+  }
 
   // 6. Tích hợp định tuyến API
   app.use('/api', routes);
@@ -41,7 +43,7 @@ export const createApp = (): Application => {
       name: 'Laptop E-Commerce API (Ultra-Lightweight)',
       version: '1.0.0',
       docs: '/api/health',
-      architecture: 'Node.js + Express + TypeScript + Prisma on AWS t3.small',
+      architecture: 'Node.js + Express + TypeScript + Prisma',
     });
   });
 
@@ -53,7 +55,7 @@ export const createApp = (): Application => {
     });
   });
 
-  // 9. Global Error Handler siêu gọn nhẹ
+  // 9. Global Error Handler
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     console.error('[SERVER ERROR]', err.message || err);
     res.status(err.status || 500).json({
@@ -64,3 +66,19 @@ export const createApp = (): Application => {
 
   return app;
 };
+
+// ==========================================
+// ĐOẠN MỚI BỔ SUNG ĐỂ SỬA LỖI VERCEL:
+// ==========================================
+const app = createApp();
+
+// Khởi chạy server khi chạy ở môi trường local
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server đang chạy tại http://localhost:${PORT}`);
+  });
+}
+
+// BẮT BUỘC: Export default instance app cho Vercel Serverless Function nhận diện
+export default app;
