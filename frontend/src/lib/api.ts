@@ -2,14 +2,21 @@ import Cookies from 'js-cookie';
 import { IUser, IProduct, CreateProductInput, ApiResponse } from '../types/models';
 import { Category, Brand, Order } from '../types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
-  || 'https://laptop-e-commerce-k474.vercel.app';
+const configuredApiUrl = (
+  typeof window === 'undefined'
+    ? process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL
+    : process.env.NEXT_PUBLIC_API_URL
+)?.trim();
+const API_BASE_URL = configuredApiUrl || 'https://laptop-e-commerce-k474.vercel.app';
 const API_BASE = API_BASE_URL.endsWith('/api')
   ? API_BASE_URL
   : `${API_BASE_URL}/api`;
 
 function getFallbackApiBase(): string {
-  return API_BASE;
+  if (typeof window !== 'undefined') return '/api';
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api`;
+  if (process.env.RENDER_EXTERNAL_URL) return `${process.env.RENDER_EXTERNAL_URL}/api`;
+  return `http://127.0.0.1:${process.env.PORT || '3000'}/api`;
 }
 
 // Helper lấy Auth Header từ Cookie hoặc LocalStorage
