@@ -5,8 +5,15 @@ import { Category, Brand, Order } from '../types';
 // Browser requests go through Nginx to the Express API. Server-side rendering
 // uses the Docker network address so it does not call the frontend container.
 const API_BASE = typeof window !== 'undefined'
-  ? (process.env.NEXT_PUBLIC_API_URL || '/api')
-  : (process.env.INTERNAL_API_URL || 'http://backend:5000/api');
+  ? (() => {
+      const configured = process.env.NEXT_PUBLIC_API_URL;
+      const isLocalBrowser = window.location.hostname === 'localhost'
+        || window.location.hostname === '127.0.0.1';
+      return isLocalBrowser && (!configured || configured === '/api')
+        ? 'http://localhost:5000/api'
+        : (configured || '/api');
+    })()
+  : (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api');
 
 // Helper lấy Auth Header từ Cookie hoặc LocalStorage
 export function getAuthHeaders(): HeadersInit {
@@ -83,7 +90,7 @@ export async function getProducts(params?: Record<string, string | number | bool
       });
     }
 
-    const res = await fetch(`${API_BASE}/admin/products?${query.toString()}`, {
+    const res = await fetch(`${API_BASE}/products?${query.toString()}`, {
       cache: 'no-store',
     });
     if (res.ok) {
@@ -104,12 +111,11 @@ export async function getProducts(params?: Record<string, string | number | bool
 
 export async function getProductBySlug(slug: string): Promise<IProduct | null> {
   try {
-    const res = await fetch(`${API_BASE}/admin/products`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE}/products/${encodeURIComponent(slug)}`, { cache: 'no-store' });
     if (res.ok) {
       const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        const found = json.data.find((p: IProduct) => p.slug === slug || String(p.id) === slug);
-        if (found) return found;
+      if (json.success && json.data) {
+        return json.data;
       }
     }
   } catch (error) {

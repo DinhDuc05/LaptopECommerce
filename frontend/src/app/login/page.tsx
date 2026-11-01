@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { Lock, Mail, ArrowRight, Loader2, Laptop } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { loginApi } from '../../lib/api';
+import { setAuth } from '../../lib/auth';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface LoginForm {
@@ -53,8 +55,6 @@ function InputField({ label, id, type, value, onChange, placeholder, icon, disab
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function LoginPage() {
   const router = useRouter();
-  const login  = useAuthStore((s) => s.login);
-
   const [form, setForm]       = useState<LoginForm>({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
 
@@ -70,27 +70,29 @@ export default function LoginPage() {
       return;
     }
 
-    // Giả lập async (nếu sau này thay bằng API call thật thì thay chỗ này)
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 600)); // UX: thấy loading rõ ràng hơn
+    try {
+      const result = await loginApi(form.email.trim(), form.password);
 
-    // Gọi action login từ Zustand store
-    const result = login(form.email, form.password);
-    setLoading(false);
+      if (!result.success || !result.token || !result.user) {
+        toast.error(result.message || 'Đăng nhập không thành công.');
+        return;
+      }
 
-    if (result.ok) {
-      // Lấy lại currentUser từ store để biết role
-      const { currentUser } = useAuthStore.getState();
-      toast.success(`Chào mừng trở lại, ${currentUser?.fullName}! 🎉`);
+      setAuth(result.token, result.user);
+      useAuthStore.setState({ currentUser: result.user });
+      window.dispatchEvent(new Event('auth-changed'));
+      toast.success(`Chào mừng trở lại, ${result.user.fullName}! 🎉`);
 
-      // Phân luồng redirect theo role
-      if (currentUser?.role === 'admin' || currentUser?.role === 'ADMIN') {
+      if (result.user.role === 'admin' || result.user.role === 'ADMIN') {
         router.push('/admin');
       } else {
         router.push('/');
       }
-    } else {
-      toast.error(result.message || 'Đăng nhập không thành công.');
+    } catch (error: any) {
+      toast.error(error.message || 'Lỗi kết nối máy chủ khi đăng nhập.');
+    } finally {
+      setLoading(false);
     }
   };
 
