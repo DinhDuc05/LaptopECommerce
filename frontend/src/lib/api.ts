@@ -7,7 +7,14 @@ const configuredApiUrl = (
     ? process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL
     : process.env.NEXT_PUBLIC_API_URL
 )?.trim();
-const API_BASE_URL = configuredApiUrl || 'https://laptop-e-commerce-k474.vercel.app';
+// Server components run inside the Next.js process on Render. When no API URL
+// is configured, call the local Next.js route instead of the old Vercel app.
+// Browser requests use the same-origin `/api` route below.
+const API_BASE_URL = configuredApiUrl || (
+  typeof window === 'undefined'
+    ? `http://127.0.0.1:${process.env.PORT || '3000'}`
+    : ''
+);
 const API_BASE = API_BASE_URL.endsWith('/api')
   ? API_BASE_URL
   : `${API_BASE_URL}/api`;
