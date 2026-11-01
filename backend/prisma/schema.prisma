@@ -7,20 +7,20 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlserver"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model User {
   id           Int      @id @default(autoincrement()) @map("Id")
-  email        String   @unique @db.NVarChar(100) @map("Email")
-  passwordHash String   @db.NVarChar(255) @map("PasswordHash")
-  fullName     String   @db.NVarChar(100) @map("FullName")
-  phone        String?  @db.NVarChar(20) @map("Phone")
-  role         String   @default("CUSTOMER") @db.NVarChar(20) @map("Role")
+  email        String   @unique @db.VarChar(100) @map("Email")
+  passwordHash String   @db.VarChar(255) @map("PasswordHash")
+  fullName     String   @db.VarChar(100) @map("FullName")
+  phone        String?  @db.VarChar(20) @map("Phone")
+  role         String   @default("CUSTOMER") @db.VarChar(20) @map("Role")
   isActive     Boolean  @default(true) @map("IsActive")
-  createdAt    DateTime @default(now()) @db.DateTime2 @map("CreatedAt")
-  updatedAt    DateTime @default(now()) @updatedAt @db.DateTime2 @map("UpdatedAt")
+  createdAt    DateTime @default(now()) @db.Timestamp(3) @map("CreatedAt")
+  updatedAt    DateTime @default(now()) @updatedAt @db.Timestamp(3) @map("UpdatedAt")
 
   orders       Order[]
 
@@ -29,11 +29,11 @@ model User {
 
 model Category {
   id           Int       @id @default(autoincrement()) @map("Id")
-  name         String    @db.NVarChar(100) @map("Name")
+  name         String    @db.VarChar(100) @map("Name")
   slug         String    @unique @db.VarChar(100) @map("Slug")
-  description  String?   @db.NVarChar(255) @map("Description")
+  description  String?   @db.VarChar(255) @map("Description")
   displayOrder Int       @default(0) @map("DisplayOrder")
-  createdAt    DateTime  @default(now()) @db.DateTime2 @map("CreatedAt")
+  createdAt    DateTime  @default(now()) @db.Timestamp(3) @map("CreatedAt")
 
   products     Product[]
 
@@ -42,10 +42,10 @@ model Category {
 
 model Brand {
   id        Int       @id @default(autoincrement()) @map("Id")
-  name      String    @db.NVarChar(100) @map("Name")
+  name      String    @db.VarChar(100) @map("Name")
   slug      String    @unique @db.VarChar(100) @map("Slug")
-  logoUrl   String?   @db.NVarChar(255) @map("LogoUrl")
-  createdAt DateTime  @default(now()) @db.DateTime2 @map("CreatedAt")
+  logoUrl   String?   @db.VarChar(255) @map("LogoUrl")
+  createdAt DateTime  @default(now()) @db.Timestamp(3) @map("CreatedAt")
 
   products  Product[]
 
@@ -56,15 +56,15 @@ model Product {
   id           Int              @id @default(autoincrement()) @map("Id")
   categoryId   Int              @map("CategoryId")
   brandId      Int              @map("BrandId")
-  name         String           @db.NVarChar(200) @map("Name")
+  name         String           @db.VarChar(200) @map("Name")
   slug         String           @unique @db.VarChar(200) @map("Slug")
-  thumbnailUrl String           @db.NVarChar(500) @map("ThumbnailUrl")
-  summary      String?          @db.NVarChar(500) @map("Summary")
-  description  String?          @db.NVarChar(max) @map("Description")
+  thumbnailUrl String           @db.VarChar(500) @map("ThumbnailUrl")
+  summary      String?          @db.VarChar(500) @map("Summary")
+  description  String?          @db.Text @map("Description")
   isFeatured   Boolean          @default(false) @map("IsFeatured")
   isActive     Boolean          @default(true) @map("IsActive")
-  createdAt    DateTime         @default(now()) @db.DateTime2 @map("CreatedAt")
-  updatedAt    DateTime         @default(now()) @updatedAt @db.DateTime2 @map("UpdatedAt")
+  createdAt    DateTime         @default(now()) @db.Timestamp(3) @map("CreatedAt")
+  updatedAt    DateTime         @default(now()) @updatedAt @db.Timestamp(3) @map("UpdatedAt")
 
   category     Category         @relation(fields: [categoryId], references: [id], onUpdate: NoAction, onDelete: NoAction)
   brand        Brand            @relation(fields: [brandId], references: [id], onUpdate: NoAction, onDelete: NoAction)
@@ -79,17 +79,17 @@ model ProductVariant {
   id            Int         @id @default(autoincrement()) @map("Id")
   productId     Int         @map("ProductId")
   sku           String      @unique @db.VarChar(50) @map("SKU")
-  cpu           String      @db.NVarChar(100) @map("Cpu")
+  cpu           String      @db.VarChar(100) @map("Cpu")
   ramGb         Int         @map("RamGb")
-  storage       String      @db.NVarChar(100) @map("Storage")
-  vga           String?     @db.NVarChar(100) @map("Vga")
-  screenSize    String      @db.NVarChar(50) @map("ScreenSize")
-  color         String      @db.NVarChar(50) @map("Color")
+  storage       String      @db.VarChar(100) @map("Storage")
+  vga           String?     @db.VarChar(100) @map("Vga")
+  screenSize    String      @db.VarChar(50) @map("ScreenSize")
+  color         String      @db.VarChar(50) @map("Color")
   price         Decimal     @db.Decimal(12, 0) @map("Price")
   originalPrice Decimal?    @db.Decimal(12, 0) @map("OriginalPrice")
   stockQuantity Int         @default(0) @map("StockQuantity")
   isActive      Boolean     @default(true) @map("IsActive")
-  createdAt     DateTime    @default(now()) @db.DateTime2 @map("CreatedAt")
+  createdAt     DateTime    @default(now()) @db.Timestamp(3) @map("CreatedAt")
 
   product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems    OrderItem[]
@@ -102,16 +102,16 @@ model Order {
   id              Int         @id @default(autoincrement()) @map("Id")
   orderCode       String      @unique @db.VarChar(30) @map("OrderCode")
   userId          Int?        @map("UserId")
-  customerName    String      @db.NVarChar(100) @map("CustomerName")
+  customerName    String      @db.VarChar(100) @map("CustomerName")
   customerPhone   String      @db.VarChar(20) @map("CustomerPhone")
-  customerEmail   String?     @db.NVarChar(100) @map("CustomerEmail")
-  shippingAddress String      @db.NVarChar(300) @map("ShippingAddress")
-  note            String?     @db.NVarChar(500) @map("Note")
+  customerEmail   String?     @db.VarChar(100) @map("CustomerEmail")
+  shippingAddress String      @db.VarChar(300) @map("ShippingAddress")
+  note            String?     @db.VarChar(500) @map("Note")
   totalAmount     Decimal     @db.Decimal(12, 0) @map("TotalAmount")
   paymentMethod   String      @default("COD") @db.VarChar(20) @map("PaymentMethod")
   status          String      @default("PENDING") @db.VarChar(20) @map("Status")
-  createdAt       DateTime    @default(now()) @db.DateTime2 @map("CreatedAt")
-  updatedAt       DateTime    @default(now()) @updatedAt @db.DateTime2 @map("UpdatedAt")
+  createdAt       DateTime    @default(now()) @db.Timestamp(3) @map("CreatedAt")
+  updatedAt       DateTime    @default(now()) @updatedAt @db.Timestamp(3) @map("UpdatedAt")
 
   user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   items           OrderItem[]
@@ -124,8 +124,8 @@ model OrderItem {
   id          Int            @id @default(autoincrement()) @map("Id")
   orderId     Int            @map("OrderId")
   variantId   Int            @map("VariantId")
-  productName String         @db.NVarChar(200) @map("ProductName")
-  variantInfo String         @db.NVarChar(300) @map("VariantInfo")
+  productName String         @db.VarChar(200) @map("ProductName")
+  variantInfo String         @db.VarChar(300) @map("VariantInfo")
   price       Decimal        @db.Decimal(12, 0) @map("Price")
   quantity    Int            @default(1) @map("Quantity")
   subtotal    Decimal        @db.Decimal(12, 0) @map("Subtotal")
@@ -139,10 +139,10 @@ model OrderItem {
 model Review {
   id           Int      @id @default(autoincrement()) @map("Id")
   productId    Int      @map("ProductId")
-  customerName String   @db.NVarChar(100) @map("CustomerName")
-  rating       Int      @db.TinyInt @map("Rating")
-  comment      String   @db.NVarChar(500) @map("Comment")
-  createdAt    DateTime @default(now()) @db.DateTime2 @map("CreatedAt")
+  customerName String   @db.VarChar(100) @map("CustomerName")
+  rating       Int      @db.SmallInt @map("Rating")
+  comment      String   @db.VarChar(500) @map("Comment")
+  createdAt    DateTime @default(now()) @db.Timestamp(3) @map("CreatedAt")
 
   product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
