@@ -2,8 +2,8 @@ import Cookies from 'js-cookie';
 import { IUser, IProduct, CreateProductInput, ApiResponse } from '../types/models';
 import { Category, Brand, Order } from '../types';
 
-// Browser requests go through Nginx to the Express API. Server-side rendering
-// uses the Docker network address so it does not call the frontend container.
+// Browser requests use the configured public backend. When no public backend is
+// configured, the same-origin Next.js API routes provide the local fallback.
 const API_BASE = typeof window !== 'undefined'
   ? (() => {
       const configured = process.env.NEXT_PUBLIC_API_URL;
