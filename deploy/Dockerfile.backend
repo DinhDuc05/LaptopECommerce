@@ -1,0 +1,25 @@
+# ============================================================================
+# MULTI-STAGE DOCKERFILE FOR BACKEND API (AWS T3.SMALL OPTIMIZED)
+# ============================================================================
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY backend/package*.json backend/tsconfig.json ./
+RUN npm ci
+COPY backend/src ./src
+COPY backend/prisma ./prisma
+RUN npx prisma generate
+RUN npm run build
+RUN npm prune --production
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=5000
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+USER node
+EXPOSE 5000
+# BẮT BUỘC: Giới hạn RAM tối đa 256MB
+CMD ["node", "--max-old-space-size=256", "dist/server.js"]

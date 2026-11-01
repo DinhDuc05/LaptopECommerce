@@ -1,0 +1,30 @@
+{
+  "name": "laptop-ecommerce-frontend",
+  "version": "1.0.0",
+  "description": "Ultra lightweight Next.js App Router Frontend for Laptop E-Commerce, optimized for AWS t3.small",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "node --max-old-space-size=256 .next/standalone/server.js"
+  },
+  "dependencies": {
+    "@types/js-cookie": "^3.0.6",
+    "js-cookie": "^3.0.8",
+    "lucide-react": "^0.468.0",
+    "next": "14.2.21",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.6.1",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.7.2"
+  }
+}
