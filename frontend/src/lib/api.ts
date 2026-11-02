@@ -1,4 +1,3 @@
-import Cookies from 'js-cookie';
 import { IUser, IProduct, CreateProductInput, ApiResponse } from '../types/models';
 import { Category, Brand, Order } from '../types';
 
@@ -27,10 +26,21 @@ function getFallbackApiBase(): string {
 }
 
 // Helper lấy Auth Header từ Cookie hoặc LocalStorage
+function getBrowserToken(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  const cookieToken = document.cookie
+    .split('; ')
+    .find((cookie) => cookie.startsWith('laptop_store_token_v1='))
+    ?.split('=').slice(1).join('=');
+
+  return cookieToken
+    ? decodeURIComponent(cookieToken)
+    : window.localStorage.getItem('laptop_store_token_v1');
+}
+
 export function getAuthHeaders(): HeadersInit {
-  const token = typeof window !== 'undefined'
-    ? (Cookies.get('laptop_store_token_v1') || localStorage.getItem('laptop_store_token_v1'))
-    : null;
+  const token = getBrowserToken();
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
