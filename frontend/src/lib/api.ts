@@ -6,7 +6,9 @@ const rawConfiguredApiUrl = (
     ? process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL
     : process.env.NEXT_PUBLIC_API_URL
 )?.trim();
-const configuredApiUrl = rawConfiguredApiUrl;
+// Normalize a dashboard value such as `https://backend.vercel.app/` so API
+// paths never become `//api/...` and trigger a redirect during CORS preflight.
+const configuredApiUrl = rawConfiguredApiUrl?.replace(/\/+$/, '');
 // Browser requests use the same-origin `/api` route when no external API is
 // configured. Server components read the local store directly in getProducts.
 const API_BASE_URL = configuredApiUrl || '';
