@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Ultra lightweight Next.js App Router Frontend for Laptop E-Commerce, optimized for AWS t3.small",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
