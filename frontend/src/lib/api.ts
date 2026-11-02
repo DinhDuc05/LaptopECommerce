@@ -413,7 +413,7 @@ export async function getAdminOrders(): Promise<Order[]> {
 
 export async function updateAdminOrderStatus(orderId: number | string, status: string): Promise<ApiResponse> {
   try {
-    const res = await fetch(`${API_BASE}/admin/orders`, {
+    const res = await fetch(`${API_BASE}/admin/orders/${encodeURIComponent(String(orderId))}/status`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify({ id: orderId, status }),
