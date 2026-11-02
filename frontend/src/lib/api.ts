@@ -6,11 +6,7 @@ const rawConfiguredApiUrl = (
     ? process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL
     : process.env.NEXT_PUBLIC_API_URL
 )?.trim();
-// This URL belonged to the retired Vercel deployment. Ignore it even if an
-// old Render environment variable still exists.
-const configuredApiUrl = rawConfiguredApiUrl?.includes('laptop-e-commerce-k474.vercel.app')
-  ? undefined
-  : rawConfiguredApiUrl;
+const configuredApiUrl = rawConfiguredApiUrl;
 // Browser requests use the same-origin `/api` route when no external API is
 // configured. Server components read the local store directly in getProducts.
 const API_BASE_URL = configuredApiUrl || '';
