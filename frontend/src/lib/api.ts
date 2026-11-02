@@ -2,19 +2,19 @@ import Cookies from 'js-cookie';
 import { IUser, IProduct, CreateProductInput, ApiResponse } from '../types/models';
 import { Category, Brand, Order } from '../types';
 
-const configuredApiUrl = (
+const rawConfiguredApiUrl = (
   typeof window === 'undefined'
     ? process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL
     : process.env.NEXT_PUBLIC_API_URL
 )?.trim();
-// Server components run inside the Next.js process on Render. When no API URL
-// is configured, call the local Next.js route instead of the old Vercel app.
-// Browser requests use the same-origin `/api` route below.
-const API_BASE_URL = configuredApiUrl || (
-  typeof window === 'undefined'
-    ? `http://127.0.0.1:${process.env.PORT || '3000'}`
-    : ''
-);
+// This URL belonged to the retired Vercel deployment. Ignore it even if an
+// old Render environment variable still exists.
+const configuredApiUrl = rawConfiguredApiUrl?.includes('laptop-e-commerce-k474.vercel.app')
+  ? undefined
+  : rawConfiguredApiUrl;
+// Browser requests use the same-origin `/api` route when no external API is
+// configured. Server components read the local store directly in getProducts.
+const API_BASE_URL = configuredApiUrl || '';
 const API_BASE = API_BASE_URL.endsWith('/api')
   ? API_BASE_URL
   : `${API_BASE_URL}/api`;
@@ -139,6 +139,26 @@ export async function getProducts(params?: Record<string, string | number | bool
   products: IProduct[];
   pagination: { total: number; page: number; totalPages: number };
 }> {
+  // The home page is a Server Component. Read the local store directly there
+  // instead of making an HTTP request to 127.0.0.1, whose port is not known at
+  // build time on Render (Render commonly assigns PORT=10000).
+  if (typeof window === 'undefined' && !configuredApiUrl) {
+    const { getProductsFromDb } = await import('./db');
+    const products = (await getProductsFromDb()).filter((product) => {
+      if (!product.isActive) return false;
+      if (params?.brand && product.brand?.slug !== String(params.brand)) return false;
+      if (params?.category && product.category?.slug !== String(params.category)) return false;
+      const search = params?.search ? String(params.search).trim().toLowerCase() : '';
+      if (search && !product.name.toLowerCase().includes(search)) return false;
+      return true;
+    });
+
+    return {
+      products,
+      pagination: { total: products.length, page: 1, totalPages: 1 },
+    };
+  }
+
   try {
     const query = new URLSearchParams();
     if (params) {
